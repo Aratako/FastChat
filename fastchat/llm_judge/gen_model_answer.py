@@ -16,6 +16,10 @@ from tqdm import tqdm
 from fastchat.llm_judge.common import load_questions, temperature_config
 from fastchat.model import load_model, get_conversation_template
 from fastchat.utils import str_to_torch_dtype
+from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedTokenizerBase, pipeline
+from langchain.llms.huggingface_pipeline import HuggingFacePipeline
+from langchain.chains import LLMChain, SequentialChain
+
 
 
 def run_eval(
@@ -32,6 +36,7 @@ def run_eval(
     max_gpu_memory,
     dtype,
     revision,
+    cfg
 ):
     questions = load_questions(question_file, question_begin, question_end)
     # random shuffle the questions to balance the loading
@@ -63,6 +68,7 @@ def run_eval(
                 max_gpu_memory,
                 dtype=dtype,
                 revision=revision,
+                cfg=cfg,
             )
         )
 
@@ -82,18 +88,47 @@ def get_model_answers(
     max_gpu_memory,
     dtype,
     revision,
+    cfg
 ):
-    model, tokenizer = load_model(
-        model_path,
-        revision=revision,
-        device="cuda",
-        num_gpus=num_gpus_per_model,
-        max_gpu_memory=max_gpu_memory,
-        dtype=dtype,
-        load_8bit=False,
-        cpu_offloading=False,
-        debug=False,
-    )
+    # model, tokenizer = load_model(
+    #     model_path,
+    #     revision=revision,
+    #     device="cuda",
+    #     num_gpus=num_gpus_per_model,
+    #     max_gpu_memory=max_gpu_memory,
+    #     dtype=dtype,
+    #     load_8bit=False,
+    #     cpu_offloading=False,
+    #     debug=False,
+    # )
+    tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+            cfg.tokenizer.pretrained_model_name_or_path, use_fast=cfg.tokenizer.use_fast
+        )
+    if cfg.torch_dtype == "bf16":
+        torch_dtype: torch.dtype = torch.bfloat16
+    elif cfg.torch_dtype == "fp16":
+        torch_dtype = torch.float16
+    elif cfg.torch_dtype == "fp32":
+        torch_dtype = torch.float32
+    else:
+        raise ValueError("torch_dtype must be bf16 or fp16. Other types are not supported.")
+    model = AutoModelForCausalLM.from_pretrained(
+            pretrained_model_name_or_path=cfg.model.pretrained_model_name_or_path,
+            trust_remote_code=cfg.model.trust_remote_code,
+            device_map=cfg.model.device_map,
+            load_in_8bit=cfg.model.load_in_8bit,
+            load_in_4bit=cfg.model.load_in_4bit,
+            torch_dtype=torch_dtype,
+            device_map="auto",
+        )
+    model.eval()
+    if "Llama-3" in cfg.model.pretrained_model_name_or_path:
+        eos_token_id = [
+            tokenizer.eos_token_id,
+            tokenizer.convert_tokens_to_ids("<|eot_id|>"),
+        ]
+    else:
+        eos_token_id = tokenizer.eos_token_id
 
     for question in tqdm(questions):
         if question["category"] in temperature_config:
@@ -111,7 +146,8 @@ def get_model_answers(
                 conv.append_message(conv.roles[0], qs)
                 conv.append_message(conv.roles[1], None)
                 prompt = conv.get_prompt()
-                input_ids = tokenizer([prompt]).input_ids
+                input_ids = tokenizer([prompt], add_special_tokens=False).input_ids
+                print(tokenizer.decode(input_ids[0]))
 
                 if temperature < 1e-4:
                     do_sample = False
