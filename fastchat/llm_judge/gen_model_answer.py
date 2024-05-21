@@ -119,7 +119,6 @@ def get_model_answers(
             load_in_8bit=cfg.model.load_in_8bit,
             load_in_4bit=cfg.model.load_in_4bit,
             torch_dtype=torch_dtype,
-            device_map="auto",
         )
     model.eval()
     if "Llama-3" in cfg.model.pretrained_model_name_or_path:
