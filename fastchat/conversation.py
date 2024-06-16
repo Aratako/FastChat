@@ -1625,13 +1625,21 @@ register_conv_template(
 # source: hogehoge
 def initialize_custom_template():
     config = WandbConfigSingleton.get_instance().config
+    if config.mtbench.conv_sep_style == "llama2":
+        sep_style = SeparatorStyle.LLAMA2
+    elif config.mtbench.conv_sep_style == "add_colon_two":
+        sep_style = SeparatorStyle.ADD_COLON_TWO
+    else:
+        sep_style = SeparatorStyle.CUSTOM
     register_conv_template(
         Conversation(
             name=config.mtbench.conv_name,
+            system_template=config.mtbench.conv_system_template,
             system_message=config.mtbench.conv_system_message,
             roles=eval(config.mtbench.conv_roles),
-            sep_style=SeparatorStyle.CUSTOM,
+            sep_style=sep_style,
             sep=config.mtbench.conv_sep,
+            sep2=config.mtbench.conv_sep2,
             stop_token_ids=eval(config.mtbench.conv_stop_token_ids),
             stop_str=config.mtbench.conv_stop_str,
         )
