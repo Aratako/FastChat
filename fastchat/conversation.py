@@ -1629,6 +1629,8 @@ def initialize_custom_template():
         sep_style = SeparatorStyle.LLAMA2
     elif config.mtbench.conv_sep_style == "add_colon_two":
         sep_style = SeparatorStyle.ADD_COLON_TWO
+    elif config.mtbench.conv_sep_style == "chatml":
+        sep_style = SeparatorStyle.CHATML
     else:
         sep_style = SeparatorStyle.CUSTOM
     register_conv_template(
