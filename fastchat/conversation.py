@@ -338,9 +338,13 @@ class Conversation:
         elif self.sep_style == SeparatorStyle.CUSTOM:
             config = WandbConfigSingleton.get_instance().config  # ←追加
             ret = self.system_message + self.sep
-            for role, message in self.messages:
+            for i, (role, message) in enumerate(self.messages):
                 if message:
-                    ret += role + config.mtbench.conv_role_message_separator + message + self.sep
+                    ret += role + config.mtbench.conv_role_message_separator + message
+                    if i % 2 == 1:
+                        ret += self.sep2 + self.sep
+                    else:
+                        ret += self.sep
                 else:
                     ret += role + config.mtbench.conv_role_only_separator
             return ret
