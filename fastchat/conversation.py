@@ -25,6 +25,7 @@ class SeparatorStyle(IntEnum):
     LLAMA2 = auto()
     JLLAMA2 = auto()
     StableLMZephyr = auto()
+    LLAMA3 = auto()
     CHATGLM = auto()
     CHATML = auto()
     CHATINTERN = auto()
@@ -226,6 +227,19 @@ class Conversation:
                     """
                 else:
                     ret += role + "\n"
+            return ret
+        elif self.sep_style == SeparatorStyle.LLAMA3:
+            ret = "<s>"
+            if self.system_message:
+                ret += system_prompt
+            else:
+                ret += ""
+            for i, (role, message) in enumerate(self.messages):
+                if message:
+                    ret += f"<|start_header_id|>{role}<|end_header_id|>\n\n"
+                    ret += f"{message.strip()}<|eot_id|>"
+                else:
+                    ret += f"<|start_header_id|>{role}<|end_header_id|>\n\n"
             return ret
         elif self.sep_style == SeparatorStyle.CHATGLM:
             # source: https://huggingface.co/THUDM/chatglm-6b/blob/1d240ba371910e9282298d4592532d7f0f3e9f3e/modeling_chatglm.py#L1302-L1308
@@ -1631,6 +1645,8 @@ def initialize_custom_template():
     config = WandbConfigSingleton.get_instance().config
     if config.mtbench.conv_sep_style == "llama2":
         sep_style = SeparatorStyle.LLAMA2
+    elif config.mtbench.conv_sep_style == "llama3":
+        sep_style = SeparatorStyle.LLAMA3
     elif config.mtbench.conv_sep_style == "add_colon_two":
         sep_style = SeparatorStyle.ADD_COLON_TWO
     elif config.mtbench.conv_sep_style == "chatml":
